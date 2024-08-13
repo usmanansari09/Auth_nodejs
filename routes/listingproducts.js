@@ -1,24 +1,28 @@
 // routes/auth.js
 const express = require("express");
+const multer = require("multer");
 const router = express.Router();
 const Products = require("../models/Products");
+const mongoose = require("mongoose");
 
-router.post("/products", async (req, res) => {
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "uploads/");
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + "-" + file.originalname);
+    },
+});
+
+const upload = multer({ storage: storage });
+
+router.post("/products", upload.single('image'), async (req, res) => {
     const { name, price, quantity, size } = req.body;
-
+    const image = req.file ? req.file.filename : null;
     try {
-        if (!name) {
-            return res.status(400).json({ msg: "Product name should not be empty" });
-        }
-        let names = await Products.findOne({ name });
-        if (names) {
-            return res.status(400).json({ msg: "Product name already exists" });
-        }
-
-        product = new Products({ name, price, quantity, size });
-        await product.save();
-
-        res.json({ 'message': `You product is saved with name ${name}`, 'status': true });
+            product = new Products({ name, price, quantity, size, image });
+            await product.save();
+            res.json({ 'message': `You product is saved with name ${name}`, 'status': true });
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server error");
@@ -26,10 +30,25 @@ router.post("/products", async (req, res) => {
 });
 router.get("/products", async (req, res) => {
     try {
-        const products = await Products.find();
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+
+        let products;
+        let totalProducts = await Products.countDocuments();
+
+        if (!page || !limit) {
+            products = await Products.find();
+        } else {
+            const startIndex = (page - 1) * limit;
+            products = await Products.find().skip(startIndex).limit(limit);
+        }
         return res.status(200).json({
             success: true,
-            data: products.reverse()
+            page,
+            limit,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limit),
+            data: products.reverse(),
         })
 
     } catch (err) {

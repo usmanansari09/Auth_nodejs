@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <style>
+        ul { list-style-type: none; margin: 0; padding: 0; }
+        li { padding: 8px; margin-bottom: 1px; background-color: #f4f4f4; border-radius: 4px; }
+        input { padding: 10px; width: 80%; border-radius: 4px; border: 1px solid #ccc; }
+        button { padding: 10px; background-color: #007BFF; color: #fff; border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2>Register</h2>
+    <input id="username-input" placeholder="Enter your username" />
+    <button onclick="register()">Register</button>
+
+    <h2>Send a Private Message</h2>
+    <input id="recipient-id" placeholder="Recipient ID" />
+    <input id="message-input" autocomplete="off" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+
+    <ul id="messages"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const messages = document.getElementById('messages');
+        const messageInput = document.getElementById('message-input');
+        const recipientIdInput = document.getElementById('recipient-id');
+        const usernameInput = document.getElementById('username-input');
+
+        function register() {
+            const username = usernameInput.value;
+            if (username.trim()) {
+                socket.emit('register', username);
+            }
+        }
+
+        socket.on('registered', ({ id, username }) => {
+            alert(`Registered as ${username} with ID: ${id}`);
+        });
+
+        socket.on('private message', ({ sender, msg }) => {
+            const li = document.createElement('li');
+            li.textContent = `${sender}: ${msg}`;
+            messages.appendChild(li);
+            window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        function sendMessage() {
+            const message = messageInput.value;
+            const recipientId = recipientIdInput.value;
+            if (message.trim() && recipientId.trim()) {
+                socket.emit('private message', { recipientId, msg: message });
+                messageInput.value = '';
+            }
+        }
+
+        socket.on('error', (errorMsg) => {
+            alert(errorMsg);
+        });
+    </script>
+</body>
+</html>
